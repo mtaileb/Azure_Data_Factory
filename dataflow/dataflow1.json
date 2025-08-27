@@ -1,0 +1,84 @@
+{
+	"name": "dataflow1",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "AzureSqlTable1",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "Parquet1",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "split1"
+				},
+				{
+					"name": "assert1"
+				},
+				{
+					"name": "assert2"
+				},
+				{
+					"name": "FilterOutNULLCountry",
+					"description": "FilterOutNULLCountry"
+				},
+				{
+					"name": "MakeFullAddress"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          AddressID as integer,",
+				"          AddressLine1 as string,",
+				"          AddressLine2 as string,",
+				"          City as string,",
+				"          StateProvince as string,",
+				"          CountryRegion as string,",
+				"          PostalCode as string,",
+				"          rowguid as string,",
+				"          ModifiedDate as timestamp",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     limit: 100,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> source1",
+				"source1 split(iif(!in(columnNames(),'AddressID'),false(),\r",
+				"iif(!in(columnNames(),'AddressLine1'),false(),\r",
+				"iif(!in(columnNames(),'City'),false(),\r",
+				"iif(!in(columnNames(),'StateProvince'),false(),\r",
+				"iif(!in(columnNames(),'CountryRegion'),false(),\r",
+				"iif(!in(columnNames(),'PostalCode'),false(),true())))))),",
+				"     disjoint: false) ~> split1@(pass, fail)",
+				"split1@fail assert(expectTrue(false(), false, 'assert1'),",
+				"     abort: true) ~> assert1",
+				"split1@pass assert(expectTrue(CountryRegion == 'United States', false, 'assertUSOnly', null, CountryRegion + ' is not valid'),",
+				"     expectUnique(AddressID, false, 'addressIdUnique', null, \"ID of {AddressID} is not unique\")) ~> assert2",
+				"assert2 filter(!isNull(CountryRegion)) ~> FilterOutNULLCountry",
+				"FilterOutNULLCountry derive(FullAddress = \"{AddressLine1} {City}, {StateProvince} {PostalCode}\") ~> MakeFullAddress",
+				"MakeFullAddress sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     ignoreAssertFailedRows: true) ~> sink1"
+			]
+		}
+	}
+}

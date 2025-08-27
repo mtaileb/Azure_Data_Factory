@@ -1,0 +1,9 @@
+{
+	"name": "nguyenpipeline",
+	"location": "francecentral",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "1c772e9f-00e9-4493-a142-6d109d8d07c4",
+		"tenantId": "dab7d5be-3d32-41f6-b6b4-f31ecf90c7af"
+	}
+}
